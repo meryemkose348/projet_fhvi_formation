@@ -1,0 +1,60 @@
+# Exemple : à quoi ressemblerait la config sur les vrais serveurs FHVI.
+# Pas exécutable, juste pour comparer avec le yml qu'on fait tourner config/pipeline.yaml
+version: 1
+
+destination:
+  type: s3
+  bucket: ${S3_BUCKET}
+  prefix: raw
+  format: parquet
+  endpoint_url: ${S3_ENDPOINT_URL}
+  access_key: ${S3_ACCESS_KEY}
+  secret_key: ${S3_SECRET_KEY}
+
+sources:
+
+  - name: facturation_hop01
+    type: sqlserver
+    enabled: true
+    description: Base de facturation de l'établissement HOP01 (exemple)
+    connection:
+      driver: pyodbc
+      odbc_driver: ODBC Driver 18 for SQL Server
+      host: SRV-FACT01\PROD
+      database: FACTURATION
+      trusted_connection: true
+      trust_server_certificate: true
+    tables:
+      - name: fact.Prestations
+        target: prestations
+        query: >
+          SELECT IdPrestation, IPP, CodeActe, DateActe, CodeUF, MontantEUR, StatutFacturation
+          FROM fact.Prestations WITH (NOLOCK)
+
+  - name: facturation_hop02
+    type: sqlserver
+    enabled: false
+    connection:
+      driver: pyodbc
+      host: SRV-FACT02\PROD
+      database: FACTURATION
+      trusted_connection: true
+      trust_server_certificate: true
+    tables:
+      - name: fact.Prestations
+        target: prestations
+
+  - name: hub_referentiels
+    type: sqlserver
+    enabled: true
+    connection:
+      driver: pyodbc
+      host: SRV-HUB01
+      port: 1433
+      database: HUB
+      user: ${HUB_SQL_USER}
+      password: ${HUB_SQL_PASSWORD}
+      trust_server_certificate: true
+    tables:
+      - name: ref.Etablissements
+        target: etablissements

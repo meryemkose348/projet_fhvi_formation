@@ -1,0 +1,29 @@
+# exemple de rejeu + idempotence 
+version: 1
+
+destination:
+  type: s3
+  bucket: ${S3_BUCKET}
+  prefix: raw
+  format: parquet
+  write_mode: overwrite_partition
+  endpoint_url: ${S3_ENDPOINT_URL}
+  access_key: ${S3_ACCESS_KEY}
+  secret_key: ${S3_SECRET_KEY}
+
+sources:
+  - name: fact_ouest
+    type: sqlserver
+    connection:
+      host: ${MSSQL_HOST}
+      port: ${MSSQL_PORT}
+      database: ${MSSQL_DB}
+      user: ${MSSQL_USER}
+      password: ${MSSQL_PASSWORD}
+    tables:
+      - name: fact.Prestations
+        target: prestations_du_jour
+        query: >
+          SELECT IdPrestation, IPP, CodeActe, DateActe, MontantEUR, StatutFacturation, DateMaj
+          FROM fact.Prestations
+          WHERE CAST(DateMaj AS DATE) = '{load_date}'

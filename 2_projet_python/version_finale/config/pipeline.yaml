@@ -1,0 +1,66 @@
+version: 1
+
+destination:
+  type: s3 # ou local
+  bucket: ${S3_BUCKET}
+  prefix: raw
+  format: parquet # ou csv
+  write_mode: overwrite_partition
+  endpoint_url: ${S3_ENDPOINT_URL}
+  access_key: ${S3_ACCESS_KEY}
+  secret_key: ${S3_SECRET_KEY}
+
+sources:
+
+  - name: dpi_nord
+    type: postgres
+    enabled: true
+    description: DPI fictif de l'Hôpital Nord
+    connection:
+      host: ${PG_HOST}
+      port: ${PG_PORT}
+      database: ${PG_DB}
+      user: ${PG_USER}
+      password: ${PG_PASSWORD}
+    tables:
+      - name: patients
+      - name: sejours
+
+  - name: rdv_sud
+    type: mariadb
+    enabled: true
+    description: Logiciel de rendez-vous fictif de la Clinique Sud
+    connection:
+      host: ${MARIADB_HOST}
+      port: ${MARIADB_PORT}
+      database: ${MARIADB_DB}
+      user: ${MARIADB_USER}
+      password: ${MARIADB_PASSWORD}
+    tables:
+      - name: RENDEZ_VOUS
+        target: rendez_vous
+
+  - name: fact_ouest
+    type: sqlserver
+    enabled: true
+    description: Facturation fictive de l'Hôpital Ouest (SQL Server, comme le DWH FHVI)
+    connection:
+      host: ${MSSQL_HOST}
+      port: ${MSSQL_PORT}
+      database: ${MSSQL_DB}
+      user: ${MSSQL_USER}
+      # sur les vrais serveurs fhvi : driver: pyodbc + trusted_connection: true, cf exemple_serveurs_fhvi.yaml (cf exemple_serveurs_fhvi.yml)
+      password: ${MSSQL_PASSWORD}
+    tables:
+      # schéma.table comme dans SSMS
+      - name: fact.Prestations
+        target: prestations
+
+  - name: pharmacie
+    type: duckdb
+    enabled: true
+    description: Base locale de la pharmacie (fichier DuckDB)
+    connection:
+      path: ${DUCKDB_PATH}
+    tables:
+      - name: dispensations

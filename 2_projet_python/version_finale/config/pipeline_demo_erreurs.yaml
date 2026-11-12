@@ -1,0 +1,47 @@
+# 3 sources, 2 cassées exprès :
+#   dpi_nord  -> table "consultations" inexistante, 1 table KO
+#   rdv_sud   -> mauvais mot de passe, la connexion échoue
+#   pharmacie -> ok, doit être chargée malgré les deux autres
+# on attend un statut PARTIAL, code retour 1, et les tables valides bien écrites
+version: 1
+
+destination:
+  type: s3
+  bucket: ${S3_BUCKET}
+  prefix: raw
+  format: parquet
+  endpoint_url: ${S3_ENDPOINT_URL}
+  access_key: ${S3_ACCESS_KEY}
+  secret_key: ${S3_SECRET_KEY}
+
+sources:
+  - name: dpi_nord
+    type: postgres
+    connection:
+      host: ${PG_HOST}
+      port: ${PG_PORT}
+      database: ${PG_DB}
+      user: ${PG_USER}
+      password: ${PG_PASSWORD}
+    tables:
+      - name: patients
+      - name: consultations          # volontaire : absente de la base
+
+  - name: rdv_sud
+    type: mariadb
+    connection:
+      host: ${MARIADB_HOST}
+      port: ${MARIADB_PORT}
+      database: ${MARIADB_DB}
+      user: ${MARIADB_USER}
+      password: mauvais_mot_de_passe # exprès
+    tables:
+      - name: RENDEZ_VOUS
+        target: rendez_vous
+
+  - name: pharmacie
+    type: duckdb
+    connection:
+      path: ${DUCKDB_PATH}
+    tables:
+      - name: dispensations

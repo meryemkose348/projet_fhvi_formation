@@ -1,0 +1,29 @@
+# config cassée exprès, pour la démo de la validation :
+#   python main.py --config config/pipeline_invalide.yaml
+# 7 anomalies -> 10 messages d erreur, tous remontés d'un coup
+version: 1
+
+destination:
+  type: ftp                      # (1) ftp n'existe pas comme destination
+  format: xlsx                   # (2) pas de xlsx
+
+sources:
+  - name: dpi_nord
+    type: postgres
+    connection:
+      host: ${PG_HOST}
+      port: ${PG_PORT}
+      # (3) manque database, user et password
+    tables:
+      - name: patients
+
+  - name: dpi_nord               # (4) doublon
+    type: oracle                 # (5) type inconnu
+    tables: []                   # (6) liste de tables vide
+
+  - name: pharmacie
+    type: duckdb
+    connection:
+      path: ${VARIABLE_QUI_N_EXISTE_PAS}   # (7) variable absente du .env
+    tables:
+      - name: dispensations

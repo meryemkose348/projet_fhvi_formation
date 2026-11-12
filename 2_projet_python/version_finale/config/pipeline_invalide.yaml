@@ -1,0 +1,28 @@
+# Config cassée exprès pour montrer la validation : fhvi-ingest --config config/pipeline_invalide.yaml
+# 7 anomalies -> 10 messages, tous remontés d un coup (et code retour 2)
+version: 1
+
+destination:
+  type: ftp                      # (1) type inconnu
+  format: xlsx                   # (2) format pas géré
+
+sources:
+  - name: dpi_nord
+    type: postgres
+    connection:
+      host: ${PG_HOST}
+      port: ${PG_PORT}
+      # (3) manque database, user, password
+    tables:
+      - name: patients
+
+  - name: dpi_nord               # (4) nom en doublon
+    type: oracle                 # (5) pas de connecteur oracle
+    tables: []                   # (6) liste vide
+
+  - name: pharmacie
+    type: duckdb
+    connection:
+      path: ${VARIABLE_QUI_N_EXISTE_PAS}   # (7) variable absente du .env (compte 2 fois : variable + path vide)
+    tables:
+      - name: dispensations

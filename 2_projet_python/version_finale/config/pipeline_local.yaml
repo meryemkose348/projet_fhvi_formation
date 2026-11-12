@@ -1,0 +1,20 @@
+# variante sans S3 : on écrit en CSV dans un dossier local
+# pratique sur un poste de dev local ou pour une démo hors ligne
+version: 1
+
+destination:
+  type: local
+  path: ./output
+  prefix: raw
+  format: csv
+
+sources:
+  - name: pharmacie
+    type: duckdb
+    enabled: true
+    connection:
+      path: ${DUCKDB_PATH}
+    tables:
+      - name: dispensations
+      - name: produits
+        query: SELECT CodeUCD, LibelleProduit, ClasseATC FROM produits

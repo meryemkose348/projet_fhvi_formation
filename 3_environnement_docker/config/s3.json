@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "fhvi_formation",
+      "credentials": [
+        { "accessKey": "fhvi_access", "secretKey": "fhvi_secret_2026" }
+      ],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}

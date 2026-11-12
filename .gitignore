@@ -1,0 +1,18 @@
+# Secrets et environnement local (les modèles .env.example, eux, sont versionnés)
+.env
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Sorties locales du pipeline
+output/
+logs/
+
+# Fichiers temporaires et système
+*.bak
+.DS_Store

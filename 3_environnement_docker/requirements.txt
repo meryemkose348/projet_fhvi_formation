@@ -1,0 +1,17 @@
+# Dépendances communes à toutes les étapes du projet fil rouge
+# (installées une seule fois dans 2_projet_python/.venv)
+pandas==2.2.3
+pyarrow==18.1.0
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+PyMySQL==1.1.1
+pymssql==2.4.6
+duckdb==1.1.3
+boto3==1.35.81
+PyYAML==6.0.2
+python-dotenv==1.0.1
+# Qualité / tests
+pytest==8.3.4
+ruff==0.8.4
+# Exemple de CLI alternative (version_finale/exemples/cli_click.py)
+click==8.1.7

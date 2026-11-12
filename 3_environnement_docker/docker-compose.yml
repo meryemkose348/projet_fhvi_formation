@@ -1,0 +1,152 @@
+name: ${COMPOSE_PROJECT_NAME:-fhvi-formation}
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fhvi-postgres
+    environment:
+      POSTGRES_DB: ${PG_DB:?PG_DB manquant - avez-vous copié .env.example en .env ?}
+      POSTGRES_USER: ${PG_USER:?PG_USER manquant dans .env}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD manquant dans .env}
+    ports:
+      - "${PG_PORT:-55432}:5432"
+    volumes:
+      - ./sql/postgres:/docker-entrypoint-initdb.d:ro
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -tAc 'SELECT count(*) > 0 FROM sejours' | grep -q t"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: fhvi-mariadb
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DB:?MARIADB_DB manquant dans .env}
+      MARIADB_USER: ${MARIADB_USER:?MARIADB_USER manquant dans .env}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?MARIADB_PASSWORD manquant dans .env}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?MARIADB_ROOT_PASSWORD manquant dans .env}
+    ports:
+      - "${MARIADB_PORT:-53306}:3306"
+    volumes:
+      - ./sql/mariadb:/docker-entrypoint-initdb.d:ro
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: fhvi-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_COLLATION: French_CI_AS
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD manquant dans .env}
+    ports:
+      - "${MSSQL_PORT:-51433}:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q 'SELECT 1' -o /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: fhvi-sqlserver-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_DB: ${MSSQL_DB:?MSSQL_DB manquant dans .env}
+      MSSQL_USER: ${MSSQL_USER:?MSSQL_USER manquant dans .env}
+      MSSQL_PASSWORD: ${MSSQL_PASSWORD:?MSSQL_PASSWORD manquant dans .env}
+    volumes:
+      - ./sql/sqlserver:/scripts:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        SQLCMD="/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P $$MSSQL_SA_PASSWORD -C -b"
+        # déjà initialisée = la table fact.Factures existe et contient des lignes
+        if $$SQLCMD -h -1 -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM [$$MSSQL_DB].fact.Factures" 2>/dev/null | grep -qE '^ *[1-9][0-9]* *$$'; then
+          echo "Base $$MSSQL_DB déjà initialisée : rien à faire."
+          exit 0
+        fi
+        $$SQLCMD -f 65001 -v DB="$$MSSQL_DB" READER_USER="$$MSSQL_USER" READER_PASSWORD="$$MSSQL_PASSWORD" \
+          -i /scripts/1_schema.sql,/scripts/2_data.sql
+    restart: "no"
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.80
+    container_name: fhvi-s3
+    command: >
+      server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+      -volume.max=20 -master.volumeSizeLimitMB=64
+      -filer.port=8888 -ip.bind=0.0.0.0
+    ports:
+      - "${S3_PORT:-58333}:8333"
+      - "${S3_FILER_PORT:-58888}:8888"
+    volumes:
+      - ./config/s3.json:/etc/seaweedfs/s3.json:ro
+      - s3_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/ && nc -z 127.0.0.1 8333"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  s3-init:
+    image: chrislusf/seaweedfs:3.80
+    container_name: fhvi-s3-init
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "s3.bucket.create -name ${S3_BUCKET:-fhvi-landing}" | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888
+        echo "s3.bucket.list" | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888
+    restart: "no"
+
+  runner:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fhvi-runner
+    depends_on:
+      postgres: {condition: service_healthy}
+      mariadb: {condition: service_healthy}
+      seaweedfs: {condition: service_healthy}
+      sqlserver-init: {condition: service_completed_successfully}
+    working_dir: /workspace/2_projet_python
+    volumes:
+      - ..:/workspace
+    environment:
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      MARIADB_HOST: mariadb
+      MARIADB_PORT: "3306"
+      MSSQL_HOST: sqlserver
+      MSSQL_PORT: "1433"
+      S3_ENDPOINT_URL: http://seaweedfs:8333
+      DUCKDB_PATH: /workspace/3_environnement_docker/data/pharmacie.duckdb
+
+volumes:
+  pg_data:
+  mariadb_data:
+  mssql_data:
+  s3_data:
