@@ -1,0 +1,28 @@
+--- etapes_intermediaires/3_argparse/ingestion/cli.py
++++ etapes_intermediaires/3_argparse/ingestion/cli.py
+@@ -33,6 +33,14 @@
+         help=f"Sources à ingérer parmi {', '.join(SOURCE_NAMES)} (défaut : toutes).",
+     )
+     parser.add_argument(
++        "-x", "--exclude",
++        nargs="+",
++        choices=SOURCE_NAMES,
++        default=[],
++        metavar="SOURCE",
++        help="Sources à exclure (ex. un établissement en erreur).",
++    )
++    parser.add_argument(
+         "-d", "--load-date",
+         type=valid_date,
+         default=date.today().isoformat(),
+--- etapes_intermediaires/3_argparse/main.py
++++ etapes_intermediaires/3_argparse/main.py
+@@ -46,7 +46,7 @@
+         return
+ 
+     # on parcourt SOURCES : l'ordre reste celui de la liste, pas celui tapé en CLI
+-    selected = [s for s in SOURCES if s["name"] in args.sources]
++    selected = [s for s in SOURCES if s["name"] in args.sources and s["name"] not in args.exclude]
+     for source in selected:
+         for table in source["tables"]:
+             rows = ingest_table(source, table, args.load_date, args.dry_run)

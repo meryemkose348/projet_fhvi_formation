@@ -1,0 +1,21 @@
+# exercice 4:
+version: 1
+
+destination:
+  type: local
+  path: ./output
+  format: csv
+
+sources:
+  - name: rdv_sud
+    type: mariadb
+    connection:
+      host: ${MARIADB_HOST}
+      port: ${MARIADB_PORT}
+      database: ${MARIADB_DB}
+      user: ${MARIADB_USER}
+      password: ${MARIADB_PASSWORD}
+    tables:
+      - name: RENDEZ_VOUS
+        target: rendez_vous
+        query: SELECT ID_RDV, DATE_RDV, SPECIALITE, STATUT FROM RENDEZ_VOUS

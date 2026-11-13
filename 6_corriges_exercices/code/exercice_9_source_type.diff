@@ -1,0 +1,68 @@
+--- version_finale/src/fhvi_ingestion/metadata.py
++++ version_finale/src/fhvi_ingestion/metadata.py
+@@ -14,6 +14,7 @@
+ TECHNICAL_COLUMNS = (
+     "_run_id",
+     "_source_name",
++    "_source_type",
+     "_source_table",
+     "_load_date",
+     "_extracted_at",
+@@ -26,6 +27,7 @@
+     run: RunContext,
+     source_name: str,
+     source_table: str,
++    source_type: str,
+     extracted_at: datetime,
+     load_timestamp: datetime,
+ ) -> pd.DataFrame:
+@@ -37,6 +39,7 @@
+     return df.assign(
+         _run_id=run.run_id,
+         _source_name=source_name,
++        _source_type=source_type,
+         _source_table=source_table,
+         _load_date=pd.Timestamp(run.load_date).date(),
+         _extracted_at=pd.Timestamp(extracted_at),
+--- version_finale/src/fhvi_ingestion/pipeline.py
++++ version_finale/src/fhvi_ingestion/pipeline.py
+@@ -87,7 +87,7 @@
+                 logger.warning("[%s.%s] La table est vide", source.name, table.name)
+ 
+             df = normalize(df)
+-            df = add_technical_columns(df, self.run_context, source.name, table.name,
++            df = add_technical_columns(df, self.run_context, source.name, table.name, source.type,
+                                        extracted_at=extracted_at, load_timestamp=datetime.now(UTC))
+             uri = self.writer.write(df, source.name, table.target, self.run_context)
+ 
+--- version_finale/tests/unit/test_metadata.py
++++ version_finale/tests/unit/test_metadata.py
+@@ -26,12 +26,13 @@
+ 
+ def test_all_technical_columns_are_added(run_context):
+     df = pd.DataFrame({"ipp": ["IPP1", "IPP2"]})
+-    result = add_technical_columns(df, run_context, "dpi_nord", "patients", EXTRACTED, LOADED)
++    result = add_technical_columns(df, run_context, "dpi_nord", "patients", "postgres", EXTRACTED, LOADED)
+     assert list(result.columns) == ["ipp", *TECHNICAL_COLUMNS]
+     row = result.iloc[0]
+     assert row["_run_id"] == "20261109T020000Z-abcd1234"
+     assert row["_source_name"] == "dpi_nord"
+     assert row["_source_table"] == "patients"
++    assert row["_source_type"] == "postgres"
+     assert str(row["_load_date"]) == "2026-11-09"
+     assert row["_extracted_at"] == pd.Timestamp(EXTRACTED)
+     assert row["_load_timestamp"] == pd.Timestamp(LOADED)
+@@ -39,11 +40,11 @@
+ 
+ def test_business_data_is_untouched(run_context):
+     df = pd.DataFrame({"ipp": ["IPP1"]})
+-    add_technical_columns(df, run_context, "s", "t", EXTRACTED, LOADED)
++    add_technical_columns(df, run_context, "s", "t", "duckdb", EXTRACTED, LOADED)
+     assert list(df.columns) == ["ipp"]
+ 
+ 
+ def test_conflict_with_existing_column_is_refused(run_context):
+     df = pd.DataFrame({"_run_id": ["déjà là"]})
+     with pytest.raises(ValueError, match="_run_id"):
+-        add_technical_columns(df, run_context, "s", "t", EXTRACTED, LOADED)
++        add_technical_columns(df, run_context, "s", "t", "duckdb", EXTRACTED, LOADED)

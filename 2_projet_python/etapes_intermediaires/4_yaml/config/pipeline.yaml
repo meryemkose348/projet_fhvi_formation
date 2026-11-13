@@ -37,7 +37,7 @@ sources:
       password: ${MARIADB_PASSWORD}
     tables:
       - name: RENDEZ_VOUS
-        target: rendez_vous      # nom côté bucket, facultatif
+        target: rendez_vous
 
   - name: fact_ouest
     type: sqlserver
@@ -47,10 +47,10 @@ sources:
       host: ${MSSQL_HOST}
       port: ${MSSQL_PORT}
       database: ${MSSQL_DB}
-      user: ${MSSQL_USER}            # compte de service, lecture seule
+      user: ${MSSQL_USER}
       password: ${MSSQL_PASSWORD}
     tables:
-      - name: fact.Prestations       # schéma.table, comme on l'écrit dans SSMS
+      - name: fact.Prestations
         target: prestations
 
   - name: pharmacie
@@ -58,6 +58,6 @@ sources:
     enabled: true
     description: Base locale de la pharmacie (fichier DuckDB)
     connection:
-      path: ${DUCKDB_PATH}       # chemin relatif au dossier du .env
+      path: ${DUCKDB_PATH}
     tables:
       - name: dispensations

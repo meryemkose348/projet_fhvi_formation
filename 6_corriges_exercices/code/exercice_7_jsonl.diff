@@ -1,0 +1,20 @@
+--- version_finale/src/fhvi_ingestion/writers/formats.py
++++ version_finale/src/fhvi_ingestion/writers/formats.py
+@@ -38,8 +38,16 @@
+         return df.to_csv(index=False).encode("utf-8")
+ 
+ 
++class JsonLinesFormat(FileFormat):
++    """Une ligne JSON par enregistrement : pratique pour les outils de logs / API."""
++    extension = "jsonl"
++
++    def serialize(self, df: pd.DataFrame) -> bytes:
++        return df.to_json(orient="records", lines=True, date_format="iso", force_ascii=False).encode("utf-8")
++
++
+ # sert aussi à valider destination.format dans le YAML
+-FORMATS: dict[str, type[FileFormat]] = {"parquet": ParquetFormat, "csv": CsvFormat}
++FORMATS: dict[str, type[FileFormat]] = {"parquet": ParquetFormat, "csv": CsvFormat, "jsonl": JsonLinesFormat}
+ 
+ 
+ def get_format(name: str) -> FileFormat:
